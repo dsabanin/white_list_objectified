@@ -1,6 +1,6 @@
 module WhiteListHelper
   PROTOCOL_ATTRIBUTES = %w(src href)
-  PROTOCOL_SEPARATER  = /:|(&#0*58)|(&#x70)|(%|&#37;)3A/
+  PROTOCOL_SEPARATOR  = /:|(&#0*58)|(&#x70)|(%|&#37;)3A/
   mattr_reader :tags, :attributes, :protocols
   @@tags       = %w(strong em b i p code pre tt output samp kbd var sub sup dfn cite big small address hr br div span h1 h2 h3 h4 h5 h6 ul ol li dt dd)
   @@attributes = { 
@@ -53,6 +53,6 @@ module WhiteListHelper
   
   private
     def contains_bad_protocols?(value)
-      value =~ PROTOCOL_SEPARATER && !white_listed_protocols.include?(value.split(PROTOCOL_SEPARATER).first)
+      value =~ PROTOCOL_SEPARATOR && !white_listed_protocols.include?(value.split(PROTOCOL_SEPARATOR).first)
     end
 end

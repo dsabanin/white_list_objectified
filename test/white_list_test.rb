@@ -30,6 +30,16 @@ class WhiteListTest < Test::Unit::TestCase
     assert_white_listed ''
   end
 
+  def test_should_allow_custom_tags
+    text = "<u>foo</u>"
+    assert_equal(text, white_list(text, :tags => %w(u)))
+  end
+
+  def test_should_allow_custom_tags_with_attributes
+    text = "<fieldset foo='bar'>foo</fieldset>"
+    assert_equal(text, white_list(text, :attributes => {'fieldset' => %w(foo)}))
+  end
+
   [%w(img src), %w(a href)].each do |(tag, attr)|
     define_method "test_should_strip_#{attr}_attribute_in_#{tag}_with_bad_protocols" do
       assert_white_listed %(<#{tag} #{attr}="javascript:bang" id="1">boo</#{tag}>), %(<#{tag} id='1'>boo</#{tag}>)

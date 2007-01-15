@@ -61,6 +61,9 @@ module WhiteListHelper
         node = HTML::Node.parse(nil, 0, 0, token, false)
         new_text << case node
           when HTML::Tag
+            node.attributes.keys.each do |attr_name|
+              node.attributes[attr_name] = CGI::escapeHTML(node.attributes[attr_name])
+            end if node.attributes
             unless tags.include?(node.name)
               bad = node.name
               block.call node, bad

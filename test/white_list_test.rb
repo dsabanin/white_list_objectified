@@ -121,6 +121,10 @@ class WhiteListTest < Test::Unit::TestCase
     assert_equal "<img>blah</img><blink>blah</blink>", safe
   end
 
+  def test_should_sanitize_attributes
+    assert_white_listed %(<SPAN title="'><script>alert()</script>">blah</SPAN>), %(<span title="'&gt;&lt;script&gt;alert()&lt;/script&gt;">blah</span>)
+  end
+
   protected
     def assert_white_listed(text, expected = nil)
       assert_equal((expected || text), white_list(text))

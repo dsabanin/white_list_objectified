@@ -1,12 +1,25 @@
 module WhiteListHelper
-  PROTOCOL_ATTRIBUTES = Set.new %w(src href)
-  PROTOCOL_SEPARATOR  = /:|(&#0*58)|(&#x70)|(%|&#37;)3A/
+  @@protocol_attributes = Set.new %w(src href)
+  @@protocol_separator  = /:|(&#0*58)|(&#x70)|(%|&#37;)3A/
+  mattr_reader :protocol_attributes, :protocol_separator
+
+  def self.contains_bad_protocols?(white_listed_protocols, value)
+    value =~ protocol_separator && !white_listed_protocols.include?(value.split(protocol_separator).first)
+  end
 
   [:bad_tags, :tags, :attributes, :protocols].each do |attr|
     klass = class << self; self; end
-    klass.send(:define_method, "#{attr}=") { |value| class_variable_set("@@#{attr}", Set.new(value)) }
-    define_method("white_listed_#{attr}") { ::WhiteListHelper.send(attr) }
-    mattr_reader attr
+    
+    # Add class methods to the module itself
+    klass.class_eval <<-EOS, __FILE__, __LINE__
+      def #{attr}=(value) @@#{attr} = Set.new(value) end
+      def #{attr}() @@#{attr} end
+    EOS
+    
+    # prefix the instance methods with white_listed_*
+    class_eval <<-EOS, __FILE__, __LINE__
+      def white_listed_#{attr}() ::WhiteListHelper.#{attr} end
+    EOS
   end
 
   # This White Listing helper will html encode all tags and strip all attributes that aren't specifically allowed.  
@@ -55,8 +68,8 @@ module WhiteListHelper
               bad = nil
               if node.closing != :close
                 node.attributes.delete_if do |attr_name, value|
-                  !attrs.include?(attr_name) || (PROTOCOL_ATTRIBUTES.include?(attr_name) && contains_bad_protocols?(value))
-                end if attributes.any?
+                  !attrs.include?(attr_name) || (protocol_attributes.include?(attr_name) && contains_bad_protocols?(value))
+                end if white_listed_attributes.any?
               end
               node
             end
@@ -69,7 +82,7 @@ module WhiteListHelper
   
   protected
     def contains_bad_protocols?(value)
-      value =~ PROTOCOL_SEPARATOR && !white_listed_protocols.include?(value.split(PROTOCOL_SEPARATOR).first)
+      WhiteListHelper.contains_bad_protocols?(white_listed_protocols, value)
     end
 end
 

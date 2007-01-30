@@ -8,18 +8,21 @@ module WhiteListHelper
   end
 
   klass = class << self; self; end
+  klass_methods = []
+  inst_methods  = []
   [:bad_tags, :tags, :attributes, :protocols].each do |attr|
     # Add class methods to the module itself
-    klass.class_eval <<-EOS, __FILE__, __LINE__
+    klass_methods << <<-EOS
       def #{attr}=(value) @@#{attr} = Set.new(value) end
       def #{attr}() @@#{attr} end
     EOS
     
     # prefix the instance methods with white_listed_*
-    class_eval <<-EOS, __FILE__, __LINE__
-      def white_listed_#{attr}() ::WhiteListHelper.#{attr} end
-    EOS
+    inst_methods << "def white_listed_#{attr}() ::WhiteListHelper.#{attr} end"
   end
+  
+  klass.class_eval klass_methods.join("\n"), __FILE__, __LINE__
+  class_eval       inst_methods.join("\n"),  __FILE__, __LINE__
 
   # This White Listing helper will html encode all tags and strip all attributes that aren't specifically allowed.  
   # It also strips href/src tags with invalid protocols, like javascript: especially.  It does its best to counter any
@@ -61,19 +64,19 @@ module WhiteListHelper
         new_text << case node
           when HTML::Tag
             node.attributes.keys.each do |attr_name|
-              node.attributes[attr_name] = CGI::escapeHTML(node.attributes[attr_name])
+              value = node.attributes[attr_name].to_s
+              if !attrs.include?(attr_name) || (protocol_attributes.include?(attr_name) && contains_bad_protocols?(value))
+                node.attributes.delete(attr_name)
+              else
+                node.attributes[attr_name] = CGI::escapeHTML(value)
+              end
             end if node.attributes
-            unless tags.include?(node.name)
+            if tags.include?(node.name)
+              bad = nil
+              node
+            else
               bad = node.name
               block.call node, bad
-            else
-              bad = nil
-              if node.closing != :close
-                node.attributes.delete_if do |attr_name, value|
-                  !attrs.include?(attr_name) || (protocol_attributes.include?(attr_name) && contains_bad_protocols?(value))
-                end if white_listed_attributes.any?
-              end
-              node
             end
           else
             block.call node, bad

@@ -7,9 +7,8 @@ module WhiteListHelper
     value =~ protocol_separator && !white_listed_protocols.include?(value.split(protocol_separator).first)
   end
 
+  klass = class << self; self; end
   [:bad_tags, :tags, :attributes, :protocols].each do |attr|
-    klass = class << self; self; end
-    
     # Add class methods to the module itself
     klass.class_eval <<-EOS, __FILE__, __LINE__
       def #{attr}=(value) @@#{attr} = Set.new(value) end

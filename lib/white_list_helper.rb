@@ -1,11 +1,6 @@
 module WhiteListHelper
-  @@protocol_attributes = Set.new %w(src href)
-  @@protocol_separator  = /:|(&#0*58)|(&#x70)|(%|&#37;)3A/
-  mattr_reader :protocol_attributes, :protocol_separator
-
-  def self.contains_bad_protocols?(white_listed_protocols, value)
-    value =~ protocol_separator && !white_listed_protocols.include?(value.split(protocol_separator).first)
-  end
+  
+  @@white_lister ||= WhiteLister.new
 
   klass = class << self; self; end
   klass_methods = []
@@ -13,8 +8,8 @@ module WhiteListHelper
   [:bad_tags, :tags, :attributes, :protocols].each do |attr|
     # Add class methods to the module itself
     klass_methods << <<-EOS
-      def #{attr}=(value) @@#{attr} = Set.new(value) end
-      def #{attr}() @@#{attr} end
+      def #{attr}=(value) @@white_lister.instance_variable_set(:@#{attr}, Set.new(value)) end
+      def #{attr}() @@white_lister.instance_variable_get(:@#{attr}) end
     EOS
     
     # prefix the instance methods with white_listed_*
@@ -51,47 +46,13 @@ module WhiteListHelper
   # 
   #   <%= white_list(@article.body) { |node, bad| white_listed_bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;') } %>
   #
-  def white_list(html, options = {}, &block)
-    return html if html.blank? || !html.include?('<')
-    attrs   = Set.new(options[:attributes]).merge(white_listed_attributes)
-    tags    = Set.new(options[:tags]      ).merge(white_listed_tags)
-    block ||= lambda { |node, bad| white_listed_bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;') }
-    returning [] do |new_text|
-      tokenizer = HTML::Tokenizer.new(html)
-      bad       = nil
-      while token = tokenizer.next
-        node = HTML::Node.parse(nil, 0, 0, token, false)
-        new_text << case node
-          when HTML::Tag
-            node.attributes.keys.each do |attr_name|
-              value = node.attributes[attr_name].to_s
-              if !attrs.include?(attr_name) || (protocol_attributes.include?(attr_name) && contains_bad_protocols?(value))
-                node.attributes.delete(attr_name)
-              else
-                node.attributes[attr_name] = CGI::escapeHTML(value)
-              end
-            end if node.attributes
-            if tags.include?(node.name)
-              bad = nil
-              node
-            else
-              bad = node.name
-              block.call node, bad
-            end
-          else
-            block.call node, bad
-        end
-      end
-    end.join
+  def white_list(*args, &blk)
+    @@white_lister.white_list(*args, &blk)
   end
   
   protected
+  
     def contains_bad_protocols?(value)
-      WhiteListHelper.contains_bad_protocols?(white_listed_protocols, value)
+      @@white_lister.send(:contains_bad_protocols?, value)
     end
 end
-
-WhiteListHelper.bad_tags   = %w(script)
-WhiteListHelper.tags       = %w(strong em b i p code pre tt output samp kbd var sub sup dfn cite big small address hr br div span h1 h2 h3 h4 h5 h6 ul ol li dt dd abbr acronym a img blockquote del ins fieldset legend)
-WhiteListHelper.attributes = %w(href src width height alt cite datetime title class)
-WhiteListHelper.protocols  = %w(ed2k ftp http https irc mailto news gopher nntp telnet webcal xmpp callto feed)

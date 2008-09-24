@@ -1,11 +1,13 @@
 require 'test/unit'
 require File.expand_path(File.join(File.dirname(__FILE__), '../../../../config/environment.rb'))
 
-class WhiteListTest < Test::Unit::TestCase
-  include WhiteListHelper
-  public :contains_bad_protocols?
+class WhiteListerTest < Test::Unit::TestCase
 
-  WhiteListHelper.tags.each do |tag_name|
+  def setup
+    @white_lister = WhiteLister.new
+  end
+  
+  WhiteLister::TAGS.each do |tag_name|
     define_method "test_should_allow_#{tag_name}_tag" do
       assert_white_listed "start <#{tag_name} title=\"1\" name=\"foo\">foo <bad>bar</bad> baz</#{tag_name}> end", %(start <#{tag_name} title="1">foo &lt;bad>bar&lt;/bad> baz</#{tag_name}> end)
     end
@@ -32,12 +34,12 @@ class WhiteListTest < Test::Unit::TestCase
 
   def test_should_allow_custom_tags
     text = "<u>foo</u>"
-    assert_equal(text, white_list(text, :tags => %w(u)))
+    assert_equal(text, @white_lister.white_list(text, :tags => %w(u)))
   end
 
   def test_should_allow_custom_tags_with_attributes
     text = %(<fieldset foo="bar">foo</fieldset>)
-    assert_equal(text, white_list(text, :attributes => ['foo']))
+    assert_equal(text, @white_lister.white_list(text, :attributes => ['foo']))
   end
 
   [%w(img src), %w(a href)].each do |(tag, attr)|
@@ -48,18 +50,18 @@ class WhiteListTest < Test::Unit::TestCase
 
   def test_should_flag_bad_protocols
     %w(about chrome data disk hcp help javascript livescript lynxcgi lynxexec ms-help ms-its mhtml mocha opera res resource shell vbscript view-source vnd.ms.radio wysiwyg).each do |proto|
-      assert contains_bad_protocols?("#{proto}://bad")
+      assert @white_lister.send(:contains_bad_protocols?, "#{proto}://bad")
     end
   end
 
   def test_should_accept_good_protocols
-    WhiteListHelper.protocols.each do |proto|
-      assert !contains_bad_protocols?("#{proto}://good")
+    WhiteLister::PROTOCOLS.each do |proto|
+      assert !@white_lister.send(:contains_bad_protocols?, "#{proto}://good")
     end
   end
 
   def test_should_reject_hex_codes_in_protocol
-    assert contains_bad_protocols?("%6A%61%76%61%73%63%72%69%70%74%3A%61%6C%65%72%74%28%22%58%53%53%22%29")
+    assert @white_lister.send(:contains_bad_protocols?, "%6A%61%76%61%73%63%72%69%70%74%3A%61%6C%65%72%74%28%22%58%53%53%22%29")
     assert_white_listed %(<a href="&#37;6A&#37;61&#37;76&#37;61&#37;73&#37;63&#37;72&#37;69&#37;70&#37;74&#37;3A&#37;61&#37;6C&#37;65&#37;72&#37;74&#37;28&#37;22&#37;58&#37;53&#37;53&#37;22&#37;29">1</a>), "<a>1</a>"
   end
 
@@ -115,7 +117,7 @@ class WhiteListTest < Test::Unit::TestCase
 
   def test_should_allow_custom_block
     html = %(<SCRIPT type="javascript">foo</SCRIPT><img>blah</img><blink>blah</blink>)
-    safe = white_list html do |node, bad|
+    safe = @white_lister.white_list html do |node, bad|
       bad == 'script' ? nil : node
     end
     assert_equal "<img>blah</img><blink>blah</blink>", safe
@@ -127,6 +129,6 @@ class WhiteListTest < Test::Unit::TestCase
 
   protected
     def assert_white_listed(text, expected = nil)
-      assert_equal((expected || text), white_list(text))
+      assert_equal((expected || text), @white_lister.white_list(text))
     end
 end

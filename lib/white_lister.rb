@@ -21,13 +21,16 @@ class WhiteLister
     @tags       = TAGS.to_set
     @attributes = ATTRIBUTES.to_set
     @protocols  = PROTOCOLS.to_set
+    @default_bad_tag_handler = lambda do |node, bad| 
+      @bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;')
+    end
   end
   
   def white_list(html, options = {}, &block)
     return html if html.blank? || !html.include?('<')
     attrs   = Set.new(options[:attributes]).merge(@attributes)
     tags    = Set.new(options[:tags]      ).merge(@tags)
-    block ||= lambda { |node, bad| @bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;') }
+    block ||= @default_bad_tag_handler
     returning [] do |new_text|
       tokenizer = HTML::Tokenizer.new(html)
       bad       = nil

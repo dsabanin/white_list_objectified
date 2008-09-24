@@ -53,6 +53,9 @@ class WhiteLister
             else
               bad = node.name
               block.call node, bad
+              if node.closing == :self
+                bad = nil
+              end
             end
           else
             block.call node, bad

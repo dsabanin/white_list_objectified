@@ -24,6 +24,7 @@ class WhiteLister
     @default_bad_tag_handler = lambda do |node, bad| 
       @bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;')
     end
+    @default_white_tag_handler = lambda { |node| node }
   end
   
   def white_list(html, options = {}, &block)
@@ -48,7 +49,7 @@ class WhiteLister
             end if node.attributes
             if tags.include?(node.name)
               bad = nil
-              node
+              @default_white_tag_handler.call(node)
             else
               bad = node.name
               block.call node, bad

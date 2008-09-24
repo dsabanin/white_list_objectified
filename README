@@ -27,3 +27,6 @@ The block is called for all bad tags, and every text node.  node is an instance 
 bad is nil for text nodes inside good tags, or is the tag name of the bad tag.  
 
   <%= white_list(@article.body) { |node, bad| white_listed_bad_tags.include?(bad) ? nil : node.to_s.gsub(/</, '&lt;') } %>
+  
+Original plugin website: http://weblog.techno-weenie.net/2006/9/3/white-listing-plugin-for-rails
+Original plugin SVN: http://svn.techno-weenie.net/projects/plugins/white_list/
